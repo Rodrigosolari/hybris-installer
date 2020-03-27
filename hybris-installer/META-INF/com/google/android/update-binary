@@ -61,10 +61,10 @@ invalid_device && CURRENT_DEVICE=`getprop ro.build.product`
 mount | grep -q "/data.*ext4" || abort 3 "Data is NOT formatted as ext4; check out 'Wipe > Advanced' from TWRP!"
 
 # Treble
-[ -r /dev/block/bootdevice/by-name/vendor ] || abort 4 "A vendor partition doesn't exist; you need to do an OTA from OxygenOS 5.1.5 to 5.1.6!"
+[ -r /dev/block/bootdevice/by-name/vendor ] || abort 4 "A vendor partition doesn't exist; Please ask for support in our chat rooms!"
 
 # Android
-(mount | grep -q /system || mount /system) || abort 5 "Couldn't mount /system!"
+(mount | grep -q /system || mount /system) || abort 5 "Couldn't mount /system! Try mount the /system partition and try again."
 if [ `cat /system/build.prop | grep lineage.build.version= | cut -d'=' -f2` != "$TARGET_LOS_VER" ]; then
 	if [ ! -f /tmp/sfos_flash_confirm ]; then
 		touch /tmp/sfos_flash_confirm
@@ -72,7 +72,6 @@ if [ `cat /system/build.prop | grep lineage.build.version= | cut -d'=' -f2` != "
 	fi
 	log "About to perform forced flash of SFOS"
 fi
-[ -f /system/bin/toybox ] || abort 8 "Your ROM doesn't ship with toybox; extracting of SFOS rootfs isn't possible!"
 if [ -f $ROOT/etc/os-release ]; then
 	if [ ! -f /tmp/sfos_fresh_confirm ]; then
 		touch /tmp/sfos_fresh_confirm
@@ -101,42 +100,26 @@ for i in `seq 1 $offset`; do indent="${indent} "; done
 
 # Splash
 ui_print
-ui_print "-===============- Hybris Installer -===============-"
+ui_print "Installing Sailfish OS $VERSION"
 ui_print
-ui_print "                          .':oOl."
-ui_print "                       ':c::;ol."
-ui_print "                    .:do,   ,l."
-ui_print "                  .;k0l.   .ll.             .."
-ui_print "                 'ldkc   .,cdoc:'.    ..,;:::;"
-ui_print "                ,o,;o'.;::;'.  'coxxolc:;'."
-ui_print "               'o, 'ddc,.    .;::::,."
-ui_print "               cl   ,x:  .;:c:,."
-ui_print "               ;l.   .:ldoc,."
-ui_print "               .:c.    .:ll,"
-ui_print "                 'c;.    .;l:"
-ui_print "                   :xc.    ,o'"
-ui_print "                   'xxc.   ;o."
-ui_print "                   :l'c: ,lo,"
-ui_print "                  ,o'.ooclc'"
-ui_print "                .:l,,x0o;."
-ui_print "              .;llcldl,"
-ui_print "           .,oOOoc:'"
-ui_print "       .,:lddo:'."
-ui_print "      oxxo;."
+ui_print "For support, please join these channels and ask:"
+ui_print " * Discord: https://discord.gg/AvtdRJ3"
+ui_print " * Matrix: #danctnix-portingv2:matrix.org"
 ui_print
-ui_print "${indent}Installing Sailfish OS $VERSION"
-ui_print "                   Please wait ..."
 
 # Start
 log "Extracting package '$ZIPFILE'..."
 mkdir -p $FILES/
 unzip -o "$ZIPFILE" -x META-INF/* -d $FILES/
 
+log "Patching TWRP's broken tar..."
+(cp $FILES/tar /sbin/tar && chmod 777 /sbin/tar) || abort 8 "Couldn't patch tar!"
+
 log "Extracting SFOS rootfs..."
 ARCHIVE="$FILES/sfos-rootfs.tar.bz2"
 rm -rf $ROOT/
 mkdir -p $ROOT/
-/system/bin/toybox tar -xj -f $ARCHIVE -C $ROOT/ || abort 10 "Couldn't extract SFOS rootfs!"
+tar -xj -f $ARCHIVE -C $ROOT/ || abort 10 "Couldn't extract SFOS rootfs!"
 rm $ARCHIVE
 
 log "Fixing up init scripts..."
@@ -146,7 +129,7 @@ sed -e "/extraenv/s/^/#/g" -e "/import \/init.\${ro.hardware}.rc/s/^/#/" -e "/ro
 rm $ROOT/init.extraenv.armeabi-v7a.rc
 
 log "Disabling forced encryption in vendor fstab..."
-(umount /vendor &> /dev/null; mount -o rw /vendor && sed "s/fileencryption/encryptable/" -i /vendor/etc/fstab.qcom) || log "Couldn't disable forced encryption!"
+(umount /vendor &> /dev/null; mount -o rw /vendor && sed "s/fileencryption/encryptable/" -i /vendor/etc/fstab.qcom && sed "s/forceencrypt/encryptable/" -i /vendor/etc/fstab.qcom) || log "Couldn't disable forced encryption!"
 umount /vendor &
 
 if [ "$FORCE_REINSTALL" = "0" ]; then
@@ -167,8 +150,10 @@ ln -s $ROOT/boot/hybris-boot.img /sdcard/
 # <<< Script <<<
 
 # Succeeded.
-log "Sailfish OS installed successfully."
-ui_print "            All done, enjoy your new OS!"
+ui_print "Sailfish OS installed successfully."
+ui_print "Please reboot your device and enjoY!"
 ui_print
+ui_print "Keep in mind that support is provided on our chat rooms."
+ui_print "Thanks."
 cleanup
 exit 0
